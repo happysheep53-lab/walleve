@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>リールメーカー — Instagram縦型動画エディタ</title>
+</head>
+<body>
+<style>
+  :root{
+    --bg:#131019; --surface:#1c1826; --surface-2:#262130; --border:#332c40;
+    --text:#f2eef8; --muted:#a79fb4; --faint:#7a7288;
+    --accent:#ff5c8a; --accent-2:#ff9f5a; --accent-ink:#1a0d12;
+    --op:#ff9f5a; --tk:#5aa9ff; --en:#ff5c8a; --ou:#a98bff;
+    --good:#35c58b;
+    --grad:linear-gradient(135deg,#ff5c8a,#ff9f5a);
+    --radius:14px; --radius-sm:9px;
+    --ui:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP","Segoe UI",Roboto,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --shadow:0 12px 34px rgba(0,0,0,.45);
+  }
+  @media (prefers-color-scheme:light){
+    :root{--bg:#f6f4fb;--surface:#fff;--surface-2:#f0ecf6;--border:#e4deee;--text:#1b1622;
+      --muted:#6c6478;--faint:#948ba3;--accent:#e5387a;--accent-ink:#fff;--tk:#2f7fd4;
+      --shadow:0 12px 30px rgba(60,40,90,.14);}
+  }
+  :root[data-theme="dark"]{--bg:#131019;--surface:#1c1826;--surface-2:#262130;--border:#332c40;
+    --text:#f2eef8;--muted:#a79fb4;--faint:#7a7288;--accent:#ff5c8a;--accent-ink:#1a0d12;--tk:#5aa9ff;
+    --shadow:0 12px 34px rgba(0,0,0,.45);}
+  :root[data-theme="light"]{--bg:#f6f4fb;--surface:#fff;--surface-2:#f0ecf6;--border:#e4deee;
+    --text:#1b1622;--muted:#6c6478;--faint:#948ba3;--accent:#e5387a;--accent-ink:#fff;--tk:#2f7fd4;
+    --shadow:0 12px 30px rgba(60,40,90,.14);}
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--ui);
+    -webkit-font-smoothing:antialiased;line-height:1.5}
+  h1,h2,h3,p{margin:0}
+  .wrap{max-width:1240px;margin:0 auto;padding:20px 20px 60px}
+  header.top{display:flex;align-items:center;gap:14px;padding:6px 2px 22px}
+  .logo{width:38px;height:38px;border-radius:11px;background:var(--grad);display:grid;
+    place-items:center;flex:none;box-shadow:0 6px 18px rgba(255,92,138,.35)}
+  .logo svg{width:20px;height:20px}
+  .brand h1{font-size:19px;letter-spacing:-.01em;font-weight:700}
+  .brand p{font-size:12.5px;color:var(--muted)}
+  .top .spacer{flex:1}
+  .tag{font-size:11px;color:var(--muted);border:1px solid var(--border);padding:5px 10px;
+    border-radius:999px;background:var(--surface)}
+
+  .app{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:20px;align-items:start}
+  @media (max-width:880px){.app{grid-template-columns:1fr}}
+
+  .stage{position:sticky;top:14px;background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+  @media (max-width:880px){.stage{position:static}}
+  .canvas-hold{position:relative;margin:0 auto;width:100%;max-width:322px}
+  .canvas-hold::before{content:"";display:block;padding-top:177.78%}
+  #stageCanvas{position:absolute;inset:0;width:100%;height:100%;border-radius:12px;background:#000;display:block}
+  .empty{position:absolute;inset:0;display:grid;place-content:center;text-align:center;gap:8px;
+    color:var(--faint);padding:24px;pointer-events:none}
+  .empty svg{width:34px;height:34px;margin:0 auto;opacity:.7}
+  .empty b{color:var(--muted);font-weight:600;font-size:13.5px}
+  .empty span{font-size:12px}
+
+  .transport{display:flex;align-items:center;gap:12px;margin-top:14px}
+  .play{width:46px;height:46px;border-radius:50%;border:none;background:var(--grad);color:#1a0d12;
+    display:grid;place-items:center;cursor:pointer;flex:none;box-shadow:0 6px 16px rgba(255,92,138,.35);transition:transform .12s}
+  .play:hover{transform:scale(1.05)}.play:active{transform:scale(.96)}
+  .play svg{width:20px;height:20px}
+  .seekwrap{flex:1;display:flex;flex-direction:column;gap:5px}
+  #seek{width:100%;margin:0}
+  .times{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11.5px;
+    color:var(--muted);font-variant-numeric:tabular-nums}
+
+  .timeline{display:flex;height:34px;border-radius:9px;overflow:hidden;border:1px solid var(--border);
+    margin-top:14px;font-size:10.5px;font-weight:700}
+  .timeline div{display:grid;place-items:center;color:#1a0d12;overflow:hidden;white-space:nowrap;
+    min-width:0;transition:flex-basis .2s;padding:0 4px}
+  .tl-op{background:var(--op)}.tl-tk{background:var(--tk)}.tl-en{background:var(--en)}.tl-ou{background:var(--ou)}
+
+  .panel{display:flex;flex-direction:column;gap:14px;min-width:0}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+  .card>h2{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);
+    font-weight:700;padding:14px 16px 0}
+  .card .body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:13px}
+  .lead{font-size:12px;color:var(--muted);line-height:1.6}
+
+  .field{display:flex;flex-direction:column;gap:6px}
+  .mini{font-size:11.5px;color:var(--muted);font-weight:600;display:flex;justify-content:space-between;gap:8px}
+  .val{font-family:var(--mono);color:var(--text);font-size:11.5px;font-variant-numeric:tabular-nums}
+  .minmax{display:flex;justify-content:space-between;font-size:10.5px;color:var(--faint)}
+
+  .filebtn{display:flex;align-items:center;gap:10px;border:1px dashed var(--border);background:var(--surface-2);
+    border-radius:var(--radius-sm);padding:11px 12px;cursor:pointer;color:var(--text);font-size:13px;
+    transition:border-color .15s;width:100%}
+  .filebtn:hover{border-color:var(--accent)}
+  .filebtn svg{width:18px;height:18px;color:var(--accent);flex:none}
+  .filebtn .fname{color:var(--muted);font-size:12px;margin-left:auto;max-width:150px;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap;text-align:right}
+  input[type=file]{display:none}
+
+  .row{display:flex;gap:9px}.row>*{flex:1;min-width:0}
+  .seg{display:flex;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px;gap:3px}
+  .seg button{flex:1;border:none;background:transparent;color:var(--muted);font-size:12.5px;padding:7px 4px;
+    border-radius:6px;cursor:pointer;font-weight:600;transition:.12s;font-family:inherit}
+  .seg button.on{background:var(--accent);color:var(--accent-ink)}
+
+  input[type=range]{width:100%;height:4px;border-radius:3px;background:var(--surface-2);-webkit-appearance:none;
+    appearance:none;margin:2px 0;accent-color:var(--accent)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:17px;height:17px;border-radius:50%;
+    background:var(--accent);cursor:pointer;border:2px solid var(--surface)}
+  input[type=range]::-moz-range-thumb{width:17px;height:17px;border-radius:50%;background:var(--accent);
+    cursor:pointer;border:2px solid var(--surface)}
+
+  input[type=text],textarea{width:100%;background:var(--surface-2);color:var(--text);border:1px solid var(--border);
+    border-radius:var(--radius-sm);padding:9px 10px;font-size:13px;font-family:inherit;resize:vertical}
+  input:focus,textarea:focus,button:focus-visible,.filebtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  input[type=color]{width:100%;height:36px;padding:2px;border:1px solid var(--border);border-radius:8px;
+    background:var(--surface-2);cursor:pointer}
+  .chk{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text);cursor:pointer;user-select:none}
+  .chk input{width:16px;height:16px;accent-color:var(--accent)}
+
+  .block{border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);
+    padding:12px;display:flex;flex-direction:column;gap:10px}
+  .block.op{border-left:3px solid var(--op)}
+  .block.tk{border-left:3px solid var(--tk)}
+  .block.en{border-left:3px solid var(--en)}
+  .block.ou{border-left:3px solid var(--ou)}
+  .blockhead{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700}
+  .badge{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;font-size:11px;
+    color:#1a0d12;flex:none}
+  .badge.op{background:var(--op)}.badge.tk{background:var(--tk)}.badge.en{background:var(--en)}.badge.ou{background:var(--ou)}
+  .blockhead small{font-weight:500;color:var(--muted);font-size:11px}
+  .lines{display:flex;flex-direction:column;gap:7px}
+
+  .budget{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted);
+    background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:11px}
+  .budget b{color:var(--text);font-variant-numeric:tabular-nums;font-family:var(--mono)}
+  .budget .chip{align-self:flex-start;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px}
+  .chip.ok{background:rgba(53,197,139,.16);color:var(--good)}
+  .chip.over{background:rgba(255,90,90,.16);color:#ff6b6b}
+  .fitbtn{align-self:flex-start;border:1px solid var(--accent);background:transparent;color:var(--accent);
+    font-weight:700;font-size:12px;padding:7px 11px;border-radius:8px;cursor:pointer;font-family:inherit}
+  .fitbtn:hover{background:var(--accent);color:var(--accent-ink)}
+  .export .body{gap:14px}
+  .primary{border:none;background:var(--grad);color:#1a0d12;font-weight:700;font-size:15px;padding:14px;
+    border-radius:var(--radius-sm);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;
+    box-shadow:0 8px 20px rgba(255,92,138,.3);transition:transform .12s,opacity .15s}
+  .primary:hover{transform:translateY(-1px)}
+  .primary:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+  .primary svg{width:19px;height:19px}
+  .prog{height:8px;border-radius:5px;background:var(--surface-2);overflow:hidden;display:none}
+  .prog.show{display:block}
+  .prog i{display:block;height:100%;width:0;background:var(--grad);transition:width .1s linear}
+  .result{display:none;flex-direction:column;gap:10px}.result.show{display:flex}
+  #resultVideo{width:100%;max-height:340px;border-radius:10px;background:#000;display:block}
+  .dl{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--good);font-weight:700}
+  .dl svg{width:16px;height:16px;flex:none}
+  .dlbtn{display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;border:1px solid var(--accent);
+    color:var(--accent);font-weight:700;font-size:13.5px;padding:11px;border-radius:var(--radius-sm);transition:.15s}
+  .dlbtn:hover{background:var(--accent);color:var(--accent-ink)}
+  .note{font-size:11.5px;color:var(--muted);line-height:1.6}.note b{color:var(--text);font-weight:600}
+  .fmt{font-family:var(--mono);font-size:11px;color:var(--faint)}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="4" stroke="#1a0d12" stroke-width="2"/><path d="M10 9.5v5l4.5-2.5L10 9.5z" fill="#1a0d12"/></svg></div>
+    <div class="brand"><h1>リールメーカー</h1><p>オープニング → 流れるテロップ → エンディング で縦型動画を作成</p></div>
+    <div class="spacer"></div>
+    <span class="tag">9:16 · ブラウザ完結</span>
+  </header>
+
+  <div class="app">
+    <section class="stage">
+      <div class="canvas-hold">
+        <canvas id="stageCanvas" width="1080" height="1920"></canvas>
+        <div class="empty" id="emptyState">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6z" stroke="currentColor" stroke-width="1.6"/><path d="M16 9l4-2v10l-4-2" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+          <b>動画を読み込んでください</b><span>右の「動画を選ぶ」から</span>
+        </div>
+      </div>
+      <div class="transport">
+        <button class="play" id="playBtn" aria-label="再生 / 一時停止"><svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7L8 5z"/></svg></button>
+        <div class="seekwrap"><input type="range" id="seek" min="0" max="100" value="0" step="0.1" aria-label="シーク">
+          <div class="times"><span id="tCur">0.0s</span><span id="tDur">0.0s</span></div></div>
+      </div>
+      <div class="timeline" id="timeline" aria-hidden="true"></div>
+    </section>
+
+    <div class="panel">
+      <section class="card">
+        <h2>素材</h2>
+        <div class="body">
+          <label class="filebtn" tabindex="0" role="button">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M4 6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6z" stroke="currentColor" stroke-width="1.7"/><path d="M16 9l4-2v10l-4-2" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+            動画を選ぶ<span class="fname" id="vName">未選択</span><input type="file" id="vFile" accept="video/*"></label>
+          <label class="filebtn" tabindex="0" role="button">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M9 18V6l10-2v12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6.5" cy="18" r="2.5" stroke="currentColor" stroke-width="1.7"/><circle cx="16.5" cy="16" r="2.5" stroke="currentColor" stroke-width="1.7"/></svg>
+            BGMを選ぶ<span class="fname" id="aName">未選択</span><input type="file" id="aFile" accept="audio/*"></label>
+          <div class="field"><span class="mini">映像の合わせ方</span>
+            <div class="seg" id="fitSeg"><button data-fit="cover" class="on">全画面（切り抜き）</button><button data-fit="contain">全体（余白）</button></div></div>
+          <div class="field"><span class="mini">BGM音量 <span class="val" id="bgmVolVal">80%</span></span>
+            <input type="range" id="bgmVol" min="0" max="100" value="80"></div>
+          <label class="chk"><input type="checkbox" id="useVidAudio"> 動画の音も使う</label>
+          <label class="chk"><input type="checkbox" id="loopBgm" checked> BGMを動画の長さに合わせてループ</label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>動画の長さ調整（トリミング）</h2>
+        <div class="body">
+          <div class="field"><span class="mini">投稿先の上限</span>
+            <div class="seg" id="limSeg"><button data-lim="60" class="on">フィード/ストーリーズ 60秒</button><button data-lim="90">リール 90秒</button></div></div>
+          <div class="field"><span class="mini">使う開始位置 <span class="val" id="trimStartVal">0.0s</span></span>
+            <input type="range" id="trimStart" min="0" max="60" step="0.1" value="0" disabled></div>
+          <div class="field"><span class="mini">使う終了位置 <span class="val" id="trimEndVal">0.0s</span></span>
+            <input type="range" id="trimEnd" min="0" max="60" step="0.1" value="0" disabled></div>
+          <div class="budget" id="budget"><span>動画を読み込むと調整できます。</span></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>テキスト構成</h2>
+        <div class="body">
+          <p class="lead">動画を <b>①オープニング → ②流れるテロップ → ③エンディング（お礼）</b> の順で自動構成します。空欄の段は表示されません。</p>
+
+          <div class="row">
+            <div class="field"><span class="mini">文字色</span><input type="color" id="color" value="#ffffff"></div>
+            <div class="field"><span class="mini">タイトル文字サイズ <span class="val" id="titleSizeVal">76</span></span>
+              <input type="range" id="titleSize" min="40" max="160" value="76"></div>
+          </div>
+          <label class="chk"><input type="checkbox" id="stroke" checked> 黒フチをつける（読みやすさUP）</label>
+
+          <!-- Opening -->
+          <div class="block op">
+            <div class="blockhead"><span class="badge op">1</span>オープニング <small>最初に表示</small></div>
+            <div class="lines">
+              <input type="text" id="op0" placeholder="上段">
+              <input type="text" id="op1" placeholder="中段（メインのタイトル）">
+              <input type="text" id="op2" placeholder="下段">
+            </div>
+            <div class="field"><span class="mini">表示する長さ <span class="val" id="opDurVal">3.0s</span></span>
+              <input type="range" id="opDur" min="0" max="10" step="0.5" value="3">
+              <div class="minmax"><span>短い 0秒</span><span>長い 10秒</span></div></div>
+          </div>
+
+          <!-- Ticker -->
+          <div class="block tk">
+            <div class="blockhead"><span class="badge tk">2</span>流れるテロップ <small>本編・画面下を右→左</small></div>
+            <textarea id="tk0" rows="2" placeholder="画面の下を右から左へ流れる文字（本編中ずっと表示）"></textarea>
+            <div class="row">
+              <div class="field"><span class="mini">文字サイズ <span class="val" id="tkSizeVal">56</span></span>
+                <input type="range" id="tkSize" min="30" max="120" value="56"></div>
+              <div class="field"><span class="mini">流れる速さ <span class="val" id="tkSpeedVal">0.25</span></span>
+                <input type="range" id="tkSpeed" min="0.05" max="0.8" step="0.01" value="0.25">
+                <div class="minmax"><span>ゆっくり</span><span>速い</span></div></div>
+            </div>
+          </div>
+
+          <!-- Ending -->
+          <div class="block en">
+            <div class="blockhead"><span class="badge en">3</span>エンディング <small>最後にお礼</small></div>
+            <div class="lines">
+              <input type="text" id="en0" placeholder="上段">
+              <input type="text" id="en1" placeholder="中段（例：最後まで見てくれてありがとう）">
+              <input type="text" id="en2" placeholder="下段">
+            </div>
+            <div class="field"><span class="mini">表示する長さ <span class="val" id="enDurVal">3.0s</span></span>
+              <input type="range" id="enDur" min="0" max="10" step="0.5" value="3">
+              <div class="minmax"><span>短い 0秒</span><span>長い 10秒</span></div></div>
+          </div>
+
+          <!-- Outro (after the video) -->
+          <div class="block ou">
+            <div class="blockhead"><span class="badge ou">4</span>お礼 <small>動画のあとに専用画面で追加</small></div>
+            <div class="lines">
+              <input type="text" id="ou0" placeholder="上段">
+              <input type="text" id="ou1" placeholder="中段（例：最後まで見てくれてありがとう）">
+              <input type="text" id="ou2" placeholder="下段">
+            </div>
+            <div class="row">
+              <div class="field"><span class="mini">表示する長さ <span class="val" id="ouDurVal">3.0s</span></span>
+                <input type="range" id="ouDur" min="0" max="8" step="0.5" value="3">
+                <div class="minmax"><span>なし 0秒</span><span>長い 8秒</span></div></div>
+              <div class="field"><span class="mini">背景色</span><input type="color" id="ouBg" value="#000000"></div>
+            </div>
+            <p class="note">文字を入れて長さを1秒以上にすると、<b>動画の再生後に</b>この画面が追加されます（お礼が確実に最後に出ます）。</p>
+          </div>
+
+          <div class="field"><span class="mini">フェード（ふわっと出す／消す） <span class="val" id="fadeVal">0.5s</span></span>
+            <input type="range" id="fade" min="0" max="1.5" step="0.1" value="0.5">
+            <div class="minmax"><span>なし 0秒</span><span>ゆっくり 1.5秒</span></div></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>仕上げ（映像とBGMのフェード）</h2>
+        <div class="body">
+          <p class="lead"><b>最初</b>は黒から映像が明るくなり<b>BGMも大きく</b>、<b>最後</b>は映像が黒へ・<b>BGMも小さく</b>フェードします（映像・文字・音ぜんぶ対象）。0秒でオフ。</p>
+          <div class="field"><span class="mini">最初のフェードイン（映像＋BGM） <span class="val" id="vInVal">0.6s</span></span>
+            <input type="range" id="vIn" min="0" max="2" step="0.1" value="0.6">
+            <div class="minmax"><span>なし 0秒</span><span>ゆっくり 2秒</span></div></div>
+          <div class="field"><span class="mini">最後のフェードアウト（映像＋BGM） <span class="val" id="vOutVal">1.0s</span></span>
+            <input type="range" id="vOut" min="0" max="2" step="0.1" value="1.0">
+            <div class="minmax"><span>なし 0秒</span><span>ゆっくり 2秒</span></div></div>
+        </div>
+      </section>
+
+      <section class="card export">
+        <h2>書き出し</h2>
+        <div class="body">
+          <div class="field"><span class="mini">解像度</span>
+            <div class="seg" id="resSeg"><button data-res="1080" class="on">1080×1920（推奨）</button><button data-res="720">720×1280（軽い）</button></div></div>
+          <button class="primary" id="exportBtn" disabled>
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <span id="exportLabel">動画を書き出す</span></button>
+          <div class="prog" id="prog"><i id="progBar"></i></div>
+          <div class="result" id="result">
+            <div class="dl"><svg viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>書き出し完了！</div>
+            <video id="resultVideo" controls playsinline></video>
+            <a class="dlbtn" id="dlLink" download><svg viewBox="0 0 24 24" fill="none" width="17" height="17"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 19h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>ダウンロード / 保存</a>
+            <p class="note">保存できないときは、上の<b>プレビュー動画を長押し（スマホ）／右クリック（PC）</b>で「動画を保存」を選んでください。</p>
+          </div>
+          <p class="note">書き出しは<b>実時間で録画</b>します（動画の長さ＝処理時間）。完了までタブを切り替えないでください。<br>形式：<span class="fmt" id="fmtInfo">確認中…</span></p>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = s => document.querySelector(s);
+  const video = document.createElement("video");
+  video.playsInline=true; video.muted=true; video.preload="auto";
+  const bgm = document.createElement("audio"); bgm.preload="auto";
+  const canvas = $("#stageCanvas"), ctx = canvas.getContext("2d");
+  const FONT = '700 %spx "Hiragino Kaku Gothic ProN","Noto Sans JP",system-ui,sans-serif';
+  const Y_TIERS=[0.30,0.40,0.50];   // upper-middle, tightly grouped
+  const Y_TICKER=0.82;              // lower area
+
+  const tpl = { color:"#ffffff", stroke:true, titleSize:76,
+    op:["","",""], opDur:3, tk:"", tkSize:56, tkSpeed:0.25, en:["","",""], enDur:3, fade:0.5,
+    vIn:0.6, vOut:1.0, outro:{ lines:["","",""], dur:3, bg:"#000000" },
+    trimStart:0, trimEnd:15 };
+  const state = { hasVideo:false, hasBgm:false, rawDur:15, vDur:15, duration:15, limit:60,
+    playing:false, playhead:0, fit:"cover", bg:"#000000", res:1080, recording:false, layers:[] };
+  let clockLast=0, userVol=0.8;
+
+  // ---- audio graph ----
+  let actx=null,master=null,streamDest=null,bgmGain=null,vidGain=null;
+  function ensureAudio(){
+    if(actx) return; const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
+    actx=new AC(); master=actx.createGain(); streamDest=actx.createMediaStreamDestination();
+    master.connect(actx.destination); master.connect(streamDest);
+    bgmGain=actx.createGain(); vidGain=actx.createGain(); bgmGain.connect(master); vidGain.connect(master);
+    bgmGain.gain.value=+$("#bgmVol").value/100; vidGain.gain.value=$("#useVidAudio").checked?1:0;
+    try{actx.createMediaElementSource(bgm).connect(bgmGain);}catch(e){}
+    try{actx.createMediaElementSource(video).connect(vidGain);}catch(e){}
+  }
+
+  // ---- build layers from the template ----
+  // fade capped so the text always reaches full opacity even in a short window
+  const capFade=(fd,st,en)=>Math.min(fd,Math.max(0,(en-st)*0.45));
+  const vtime=ph=>tpl.trimStart+Math.min(ph,state.vDur);   // playhead -> real video time
+  function rebuild(){
+    const f=tpl.fade, L=[];
+    const vDur=Math.max(0.5, tpl.trimEnd-tpl.trimStart);   // used length (trimmed)
+    state.vDur=vDur;
+    const hasOutro = tpl.outro.dur>0 && tpl.outro.lines.some(s=>s.trim());
+    const outroDur = hasOutro ? tpl.outro.dur : 0;
+    const total = vDur + outroDur;
+    state.duration = total;
+    $("#tDur").textContent = fmt(total);
+    const opEnd=Math.min(tpl.opDur,vDur);
+    const enStart=Math.max(opEnd, vDur-tpl.enDur);
+    const base={color:tpl.color,stroke:tpl.stroke,x:0.5};
+    tpl.op.forEach((t,i)=>{ if(t.trim()) L.push({...base,text:t,size:tpl.titleSize,loop:false,y:Y_TIERS[i],start:0,end:opEnd,fadeIn:capFade(f,0,opEnd),fadeOut:capFade(f,0,opEnd)}); });
+    if(tpl.tk.trim() && enStart>opEnd+0.05)
+      L.push({...base,text:tpl.tk,size:tpl.tkSize,loop:true,speed:tpl.tkSpeed,y:Y_TICKER,start:opEnd,end:enStart,fadeIn:capFade(Math.min(f,.3),opEnd,enStart),fadeOut:capFade(Math.min(f,.3),opEnd,enStart)});
+    tpl.en.forEach((t,i)=>{ if(t.trim()) L.push({...base,text:t,size:tpl.titleSize,loop:false,y:Y_TIERS[i],start:enStart,end:vDur,fadeIn:capFade(f,enStart,vDur),fadeOut:capFade(f,enStart,vDur)}); });
+    if(hasOutro) tpl.outro.lines.forEach((t,i)=>{ if(t.trim()) L.push({...base,text:t,size:tpl.titleSize,loop:false,y:Y_TIERS[i],start:vDur,end:total,fadeIn:capFade(f,vDur,total),fadeOut:capFade(f,vDur,total)}); });
+    state.layers=L;
+    renderTimeline(opEnd,enStart,vDur,total);
+    refreshBudget(vDur,total);
+  }
+  function refreshBudget(used,total){
+    if(!state.hasVideo){ $("#budget").innerHTML="<span>動画を読み込むと調整できます。</span>"; return; }
+    const lim=state.limit, over=total>lim+0.05;
+    $("#budget").innerHTML=
+      `<div>使う映像：<b>${used.toFixed(1)}秒</b>　＋　お礼画面：<b>${(total-used).toFixed(1)}秒</b></div>`+
+      `<div>合計：<b>${total.toFixed(1)}秒</b>　／　上限：<b>${lim}秒</b></div>`+
+      `<span class="chip ${over?"over":"ok"}">${over?"⚠ 上限オーバー（このままだと投稿できません）":"✓ 投稿できます"}</span>`+
+      (over?`<button class="fitbtn" id="fitBtn">⏱ 上限ぴったりに自動で切り詰める</button>`:``);
+    if(over){ const b=$("#fitBtn"); if(b) b.addEventListener("click",fitToLimit); }
+  }
+  function fitToLimit(){
+    const hasOutro=tpl.outro.dur>0 && tpl.outro.lines.some(s=>s.trim());
+    const avail=Math.max(1, state.limit-(hasOutro?tpl.outro.dur:0));
+    tpl.trimEnd=Math.min(state.rawDur, tpl.trimStart+avail);
+    $("#trimEnd").value=tpl.trimEnd; $("#trimEndVal").textContent=fmt(tpl.trimEnd);
+    rebuild(); seekTo(0);
+  }
+  function renderTimeline(opEnd,enStart,vDur,total){
+    const tl=$("#timeline"); tl.innerHTML="";
+    const parts=[["tl-op","オープニング",opEnd],["tl-tk","テロップ",Math.max(0,enStart-opEnd)],
+      ["tl-en","エンディング",Math.max(0,vDur-enStart)],["tl-ou","お礼",Math.max(0,total-vDur)]];
+    parts.forEach(([cls,label,dur])=>{
+      if(dur<=0.01) return;
+      const d=document.createElement("div"); d.className=cls;
+      d.style.flex=dur+" 0 0"; d.textContent = dur/total>0.13? `${label} ${dur.toFixed(1)}s` : `${dur.toFixed(1)}s`;
+      tl.appendChild(d);
+    });
+  }
+
+  // ---- bindings ----
+  function bindText(id,fn){ $(id).addEventListener("input",e=>{fn(e.target.value);rebuild();}); }
+  bindText("#op0",v=>tpl.op[0]=v); bindText("#op1",v=>tpl.op[1]=v); bindText("#op2",v=>tpl.op[2]=v);
+  bindText("#en0",v=>tpl.en[0]=v); bindText("#en1",v=>tpl.en[1]=v); bindText("#en2",v=>tpl.en[2]=v);
+  bindText("#tk0",v=>tpl.tk=v);
+  $("#color").addEventListener("input",e=>{tpl.color=e.target.value;rebuild();});
+  $("#stroke").addEventListener("change",e=>{tpl.stroke=e.target.checked;rebuild();});
+  function bindRange(id,valId,fn,fmt){ const el=$(id); el.addEventListener("input",()=>{fn(+el.value);$(valId).textContent=fmt(+el.value);rebuild();}); }
+  bindRange("#titleSize","#titleSizeVal",v=>tpl.titleSize=v,v=>v);
+  bindRange("#tkSize","#tkSizeVal",v=>tpl.tkSize=v,v=>v);
+  bindRange("#tkSpeed","#tkSpeedVal",v=>tpl.tkSpeed=v,v=>v.toFixed(2));
+  bindRange("#opDur","#opDurVal",v=>tpl.opDur=v,v=>v.toFixed(1)+"s");
+  bindRange("#enDur","#enDurVal",v=>tpl.enDur=v,v=>v.toFixed(1)+"s");
+  bindRange("#fade","#fadeVal",v=>tpl.fade=v,v=>v.toFixed(1)+"s");
+  bindRange("#vIn","#vInVal",v=>tpl.vIn=v,v=>v.toFixed(1)+"s");
+  bindRange("#vOut","#vOutVal",v=>tpl.vOut=v,v=>v.toFixed(1)+"s");
+  bindText("#ou0",v=>tpl.outro.lines[0]=v); bindText("#ou1",v=>tpl.outro.lines[1]=v); bindText("#ou2",v=>tpl.outro.lines[2]=v);
+  bindRange("#ouDur","#ouDurVal",v=>tpl.outro.dur=v,v=>v.toFixed(1)+"s");
+  $("#ouBg").addEventListener("input",e=>{tpl.outro.bg=e.target.value;rebuild();});
+  $("#limSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;state.limit=+b.dataset.lim;[...e.currentTarget.children].forEach(c=>c.classList.toggle("on",c===b));rebuild();});
+  $("#trimStart").addEventListener("input",e=>{
+    let v=+e.target.value; if(v>tpl.trimEnd-0.5)v=tpl.trimEnd-0.5; v=Math.max(0,v);
+    tpl.trimStart=v; e.target.value=v; $("#trimStartVal").textContent=fmt(v);
+    if(!state.playing)seekTo(0); rebuild();
+  });
+  $("#trimEnd").addEventListener("input",e=>{
+    let v=+e.target.value; if(v<tpl.trimStart+0.5)v=tpl.trimStart+0.5; v=Math.min(state.rawDur,v);
+    tpl.trimEnd=v; e.target.value=v; $("#trimEndVal").textContent=fmt(v);
+    rebuild();
+  });
+
+  // ---- files ----
+  $("#vFile").addEventListener("change",e=>{
+    const f=e.target.files[0]; if(!f) return;
+    video.src=URL.createObjectURL(f); $("#vName").textContent=f.name;
+    video.onloadedmetadata=()=>{
+      state.hasVideo=true;
+      let raw=video.duration; if(!isFinite(raw)||raw<=0) raw=15;
+      state.rawDur=raw;
+      tpl.trimStart=0;
+      tpl.trimEnd=Math.min(raw, state.limit);   // default: fit within the posting limit
+      const ts=$("#trimStart"), te=$("#trimEnd");
+      ts.max=te.max=raw.toFixed(2); ts.disabled=te.disabled=false;
+      ts.value=0; te.value=tpl.trimEnd;
+      $("#trimStartVal").textContent=fmt(0); $("#trimEndVal").textContent=fmt(tpl.trimEnd);
+      $("#emptyState").style.display="none"; $("#exportBtn").disabled=false;
+      rebuild(); seekTo(0);   // rebuild sets state.duration (= trimmed video + お礼) and #tDur
+    };
+  });
+  $("#aFile").addEventListener("change",e=>{
+    const f=e.target.files[0]; if(!f) return;
+    bgm.src=URL.createObjectURL(f); state.hasBgm=true; bgm.loop=$("#loopBgm").checked;
+    $("#aName").textContent=f.name;
+  });
+  $("#fitSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;state.fit=b.dataset.fit;[...e.currentTarget.children].forEach(c=>c.classList.toggle("on",c===b));});
+  $("#resSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;state.res=+b.dataset.res;[...e.currentTarget.children].forEach(c=>c.classList.toggle("on",c===b));});
+  $("#bgmVol").addEventListener("input",e=>{userVol=+e.target.value/100;$("#bgmVolVal").textContent=e.target.value+"%";if(bgmGain)bgmGain.gain.value=userVol;});
+  $("#useVidAudio").addEventListener("change",e=>{if(vidGain)vidGain.gain.value=e.target.checked?1:0;});
+  $("#loopBgm").addEventListener("change",e=>{bgm.loop=e.target.checked;});
+
+  // ---- playback ----
+  const playIcon=$("#playIcon"), seek=$("#seek");
+  const setIcon=p=>playIcon.innerHTML=p?'<path d="M7 5h4v14H7zM13 5h4v14h-4z"/>':'<path d="M8 5v14l11-7L8 5z"/>';
+  function play(){
+    ensureAudio(); if(actx&&actx.state==="suspended")actx.resume();
+    if(state.playhead>=state.duration-0.05) seekTo(0);
+    state.playing=true; setIcon(true);
+    if(state.hasVideo && state.playhead<state.vDur){video.currentTime=vtime(state.playhead);video.play().catch(()=>{});}
+    if(state.hasBgm){syncBgm();bgm.play().catch(()=>{});}
+    clockLast=performance.now();
+  }
+  function pause(){state.playing=false;setIcon(false);video.pause();bgm.pause();}
+  $("#playBtn").addEventListener("click",()=>state.playing?pause():play());
+  function seekTo(t){
+    state.playhead=Math.max(0,Math.min(state.duration,t));
+    if(state.hasVideo){try{video.currentTime=vtime(state.playhead);}catch(e){}}
+    if(state.hasBgm)syncBgm();
+    seek.value=state.duration?state.playhead/state.duration*100:0;
+    $("#tCur").textContent=fmt(state.playhead);
+  }
+  function syncBgm(){ if(!bgm.duration)return; bgm.currentTime=bgm.loop?state.playhead%bgm.duration:Math.min(state.playhead,bgm.duration); }
+  seek.addEventListener("input",()=>{if(state.playing)pause();seekTo(seek.value/100*state.duration);});
+
+  // ---- draw ----
+  function drawBackground(W,H,t){
+    if(t>=state.vDur-0.001){ ctx.fillStyle=tpl.outro.bg; ctx.fillRect(0,0,W,H); return; } // お礼画面（動画の後）
+    ctx.fillStyle=state.bg; ctx.fillRect(0,0,W,H);
+    if(!state.hasVideo||!video.videoWidth)return;
+    const iw=video.videoWidth,ih=video.videoHeight;
+    const s=state.fit==="cover"?Math.max(W/iw,H/ih):Math.min(W/iw,H/ih);
+    const dw=iw*s,dh=ih*s; ctx.drawImage(video,(W-dw)/2,(H-dh)/2,dw,dh);
+  }
+  // BGM volume envelope (fades in/out together with the picture fade)
+  function bgmFade(t){
+    const D=state.duration; let g=1;
+    if(tpl.vIn>0 && t<tpl.vIn) g=Math.min(g,t/tpl.vIn);
+    if(tpl.vOut>0 && t>D-tpl.vOut) g=Math.min(g,(D-t)/tpl.vOut);
+    return Math.max(0,Math.min(1,g));
+  }
+  function updateBgmGain(t){ if(bgmGain) bgmGain.gain.value=userVol*bgmFade(t); }
+  function opacityFor(l,t){
+    if(t<l.start-1e-4||t>l.end+1e-4)return 0;
+    const local=t-l.start,span=Math.max(.001,l.end-l.start); let o=1;
+    if(l.fadeIn>0&&local<l.fadeIn)o=local/l.fadeIn;
+    const fe=span-local; if(l.fadeOut>0&&fe<l.fadeOut)o=Math.min(o,fe/l.fadeOut);
+    return Math.max(0,Math.min(1,o));
+  }
+  function drawText(l,W,H,op,t){
+    if(op<=0||!l.text)return;
+    const size=l.size*(W/1080);
+    ctx.save(); ctx.globalAlpha=op; ctx.font=FONT.replace("%s",size); ctx.textBaseline="middle";
+    ctx.shadowColor="rgba(0,0,0,.35)"; ctx.shadowBlur=size*.12; ctx.shadowOffsetY=size*.03;
+    if(l.stroke){ctx.lineWidth=size*.15;ctx.lineJoin="round";ctx.strokeStyle="rgba(0,0,0,.8)";}
+    if(l.loop){
+      ctx.textAlign="left";
+      const line=l.text.replace(/\n/g,"  ");
+      const w=ctx.measureText(line).width, spd=Math.max(.001,l.speed)*W, cyc=(w+W)/spd;
+      const local=(((t-l.start)%cyc)+cyc)%cyc, x=W-local*spd, y=l.y*H;
+      if(l.stroke)ctx.strokeText(line,x,y); ctx.fillStyle=l.color; ctx.fillText(line,x,y);
+    }else{
+      ctx.textAlign="center";
+      const lines=l.text.split("\n"),lh=size*1.28; const x=l.x*W; let y=l.y*H-(lines.length-1)*lh/2;
+      lines.forEach(ln=>{if(l.stroke)ctx.strokeText(ln,x,y);ctx.fillStyle=l.color;ctx.fillText(ln,x,y);y+=lh;});
+    }
+    ctx.restore();
+  }
+  function videoFadeAlpha(t){
+    const D=state.duration; let a=0;
+    if(tpl.vIn>0 && t<tpl.vIn) a=Math.max(a,1-t/tpl.vIn);          // black -> visible at start
+    if(tpl.vOut>0 && t>D-tpl.vOut) a=Math.max(a,1-(D-t)/tpl.vOut); // visible -> black at end
+    return Math.max(0,Math.min(1,a));
+  }
+  function drawFrame(t){
+    const W=canvas.width,H=canvas.height;
+    drawBackground(W,H,t);
+    state.layers.forEach(l=>drawText(l,W,H,opacityFor(l,t),t));
+    const a=videoFadeAlpha(t);
+    if(a>0){ ctx.save(); ctx.globalAlpha=a; ctx.fillStyle="#000"; ctx.fillRect(0,0,W,H); ctx.restore(); }
+  }
+
+  function tick(ts){
+    if(state.playing&&!state.recording){
+      if(state.hasVideo && !video.ended && state.playhead < state.vDur-0.05) state.playhead=video.currentTime-tpl.trimStart; // follow the video
+      else state.playhead+=(ts-clockLast)/1000;                                                                             // お礼 / no-video tail
+      clockLast=ts;
+      if(state.hasVideo && state.playhead>=state.vDur && !video.paused) video.pause();  // stop at trim end
+      if(state.playhead>=state.duration){pause();state.playhead=state.duration;}
+      seek.value=state.duration?state.playhead/state.duration*100:0; $("#tCur").textContent=fmt(state.playhead);
+    }
+    updateBgmGain(state.playhead);
+    if(!state.recording)drawFrame(state.playhead);
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  // ---- export ----
+  function pickMime(){
+    const c=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+    for(const m of c){if(window.MediaRecorder&&MediaRecorder.isTypeSupported(m))return m;} return "";
+  }
+  const chosenMime=pickMime();
+  $("#fmtInfo").textContent=chosenMime?(chosenMime.includes("mp4")?"MP4（Instagramにそのまま投稿OK）":"WebM（スマホによっては変換が必要な場合あり）"):"この端末は録画に非対応";
+
+  $("#exportBtn").addEventListener("click",startExport);
+  async function startExport(){
+    if(state.recording)return;
+    if(!window.MediaRecorder||!chosenMime){alert("お使いのブラウザは書き出しに対応していません。Chrome/Safariの最新版でお試しください。");return;}
+    if(state.duration>state.limit+0.05 && !confirm(`合計 ${state.duration.toFixed(1)}秒 が上限 ${state.limit}秒 を超えています。このまま書き出しますか？（トリミングで短くするのがおすすめです）`)) return;
+    ensureAudio(); if(actx&&actx.state==="suspended")await actx.resume();
+    pause();
+    canvas.width=state.res; canvas.height=Math.round(state.res*16/9);
+    if(state.hasVideo)await seekVideo(tpl.trimStart); if(state.hasBgm)bgm.currentTime=0; state.playhead=0;
+    const vStream=canvas.captureStream(30), tracks=[vStream.getVideoTracks()[0]];
+    if(streamDest&&(state.hasBgm||$("#useVidAudio").checked))tracks.push(streamDest.stream.getAudioTracks()[0]);
+    let rec; const stream=new MediaStream(tracks);
+    try{rec=new MediaRecorder(stream,{mimeType:chosenMime,videoBitsPerSecond:8000000});}catch(e){rec=new MediaRecorder(stream);}
+    const chunks=[]; rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+    rec.onstop=()=>{
+      finishExport();
+      if(!chunks.length){alert("書き出しに失敗しました（データが空です）。動画を読み込み直してお試しください。");return;}
+      const type=chosenMime.includes("mp4")?"video/mp4":"video/webm", ext=type.includes("mp4")?"mp4":"webm";
+      const url=URL.createObjectURL(new Blob(chunks,{type})), name=`instagram_reel_${Date.now()}.${ext}`;
+      $("#resultVideo").src=url; const a=$("#dlLink"); a.href=url; a.download=name;
+      $("#result").classList.add("show"); $("#result").scrollIntoView({behavior:"smooth",block:"nearest"});
+      try{const t=document.createElement("a");t.href=url;t.download=name;document.body.appendChild(t);t.click();t.remove();}catch(e){}
+    };
+    state.recording=true; $("#exportBtn").disabled=true; $("#exportLabel").textContent="書き出し中…";
+    $("#prog").classList.add("show"); $("#result").classList.remove("show");
+    rec.start(200);
+    if(state.hasVideo)video.play().catch(()=>{}); if(state.hasBgm)bgm.play().catch(()=>{});
+    const t0=performance.now();
+    (function rf(){
+      const t=(performance.now()-t0)/1000; state.playhead=t; drawFrame(t); updateBgmGain(t);
+      if(state.hasVideo && t>=state.vDur && !video.paused) video.pause();  // stop at trim end
+      $("#progBar").style.width=Math.min(100,t/state.duration*100)+"%";
+      if(t>=state.duration){try{rec.stop();}catch(e){}video.pause();bgm.pause();return;}
+      requestAnimationFrame(rf);
+    })();
+  }
+  function finishExport(){state.recording=false;$("#exportBtn").disabled=false;$("#exportLabel").textContent="動画を書き出す";$("#prog").classList.remove("show");$("#progBar").style.width="0%";seekTo(0);}
+  function seekVideo(t){return new Promise(res=>{const d=()=>{video.removeEventListener("seeked",d);res();};video.addEventListener("seeked",d);try{video.currentTime=t;}catch(e){res();}setTimeout(res,600);});}
+
+  function fmt(s){return (s||0).toFixed(1)+"s";}
+  rebuild(); drawFrame(0);
+})();
+</script>
+
+</body>
+</html>
